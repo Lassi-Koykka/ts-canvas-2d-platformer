@@ -1,8 +1,9 @@
 import { Iinput } from "./components/GameCanvas";
+import { Entity } from "./types.d";
 
-type animationState = "idle" | "walk" | "crouch";
+type characterState = "idle" | "walk" | "crouch";
 
-interface IAnimations {
+interface IPlayerAnimations {
     still: {
         [state: string] : Array<{sx: number, sy: number}>
     },
@@ -14,18 +15,17 @@ interface IAnimations {
     }
 }
 
-class Player {
-    //  let gravity = 0.0981
+class Player extends Entity {
     image;
     x;
     y;
     lastX;
     
-    r = 200;
+    unitWidth = 100;
     spriteWidth=31;
 
     // TODO ANIMATIONS
-    animations: IAnimations = {
+    animations: IPlayerAnimations = {
         still: {
             idle: [{sx: 0, sy: 0}],
             crouch: [{sx: 3, sy: 0}]
@@ -51,7 +51,7 @@ class Player {
     sinceLastFrame = 0;
     lastFrameTime = new Date().getTime();
     animationDirection = this.animations.right;
-    animationState: animationState = "idle";
+    characterState: characterState = "idle";
 
     speed = 12;
     xVelocity = 0;
@@ -66,13 +66,14 @@ class Player {
     crouching = false;
     
     constructor(x: number, y: number) {
+        super();
         this.x = x;
         this.lastX = x;
         this.y = y
         this.image = new Image();
         this.image.src = "Penguin.png"
         this.image.onload = () => {
-            console.log("IMAGE LOADED");
+            console.log("PLAYER IMAGE LOADED");
         }
         
     }
@@ -89,7 +90,7 @@ class Player {
             }
 
             // Horizontal movement
-            if (downKey && this.y >= window.innerHeight - this.r) {
+            if (downKey && this.y >= window.innerHeight - this.unitWidth) {
                 if(this.crouching === false) {
                     this.crouching = true;
                     if(Math.abs(this.xVelocity) > 10)
@@ -98,13 +99,11 @@ class Player {
                 } else {
                     this.xVelocity *= this.crouchFriction;
                 }
-
-
-
+            } else if (this.crouching && this.y <= window.innerHeight - this.unitWidth) {
+                this.xVelocity *= this.crouchFriction;
             } else if ((!leftKey && !rightKey && downKey) || (!leftKey && !rightKey) || (leftKey && rightKey)) {
                 // Slow down
-                this.xVelocity *= this.friction;
-                
+                this.xVelocity *= this.friction;              
             } else if (rightKey) {
                 // Add friction if travelling in the opposite direction
                 if(this.xVelocity < 0)
@@ -119,7 +118,7 @@ class Player {
                 this.xVelocity--; 
             }
             // Vertical movement
-            if (upKey && this.y === window.innerHeight - this.r) {
+            if (upKey && this.y === window.innerHeight - this.unitWidth) {
                 // Check if on ground
                 this.yVelocity *= -Math.sqrt(this.jumpHeight * -2 * -this.gravity); 
             }
@@ -143,17 +142,17 @@ class Player {
 
             this.x += this.xVelocity * this.speed * delta / 1000; 
             this.y += this.yVelocity * delta / 1000;
-            if (this.y >= window.innerHeight - this.r) {
-                this.y = window.innerHeight - this.r
+            if (this.y >= window.innerHeight - this.unitWidth) {
+                this.y = window.innerHeight - this.unitWidth
                 this.yVelocity = 1;
             }
         }
     }
 
-    draw = (context: CanvasRenderingContext2D, scrollCoordinates: {x: number, y: number}) => {
+    draw = (ctx: CanvasRenderingContext2D, scrollCoordinates: {x: number, y: number}) => {
         //console.log(this.x, this.y)
 
-        let newState = this.animationState;
+        let newState = this.characterState;
         let newDirection = this.animationDirection;
 
         if(this.xVelocity < 0.01 && this.xVelocity > -0.01) {
@@ -173,13 +172,13 @@ class Player {
             newState = "crouch";
         }
 
-        if(newDirection !== this.animationDirection || newState !== this.animationState) {
+        if(newDirection !== this.animationDirection || newState !== this.characterState) {
             console.log(newState)
             this.activeFrame = 0;
         }
         
         this.animationDirection = newDirection;
-        this.animationState = newState;
+        this.characterState = newState;
         
 
 
@@ -194,17 +193,17 @@ class Player {
         }
 
         const direction = this.animationDirection
-        const animationState = this.animationState
+        const animationState = this.characterState
         const animationFrames = direction[animationState];
         const frame = animationFrames[this.activeFrame % animationFrames.length];
 
-        if(this.x > scrollCoordinates.x + window.innerWidth - 200 - this.r  || this.x < scrollCoordinates.x + 200) {
+        if(this.x > scrollCoordinates.x + window.innerWidth - 200 - this.unitWidth  || this.x < scrollCoordinates.x + 200) {
             scrollCoordinates.x -= this.lastX - this.x;
-            
         }
+        
         this.lastX = this.x;
 
-        context.drawImage(
+        ctx.drawImage(
             this.image, 
             this.spriteWidth * frame.sx, 
             this.spriteWidth * frame.sy, 
@@ -212,8 +211,8 @@ class Player {
             this.spriteWidth, 
             this.x, 
             this.y, 
-            this.r, 
-            this.r
+            this.unitWidth, 
+            this.unitWidth
         );
         this.lastFrameTime = new Date().getTime();
         
